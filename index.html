@@ -253,6 +253,7 @@ let gTimer=null, timeLeft=GAME_TIME, delivered=0, phase='assign';
 let liftMoving=[false,false,false];
 let nextCharId=0;
 let dragCharId=null;  // id of char being dragged
+let abortGame={cancelled:false};  // abort flag for animLift
 
 // floor delivery map: floorDelivered[f] = { emoji, count }
 let floorDelivered={};
@@ -322,6 +323,7 @@ function startGame(){
   passengers=[[],[],[]]; selChar=null;
   timeLeft=GAME_TIME; delivered=0; phase='assign'; liftMoving=[false,false,false];
   floorDelivered={};
+  abortGame={cancelled:false};
   document.getElementById('end-overlay').classList.add('hidden');
   document.getElementById('del-count').textContent=0;
   CFG.forEach((c,i)=>document.getElementById(`lr-${i}`).textContent=`FL ${c.min}–${c.max}`);
@@ -595,13 +597,16 @@ async function animLift(li,pass){
   let cur=1;
 
   for(let f=2;f<=topFloor;f++){
+    if(abortGame.cancelled){return;}
     setCar(li,f,MS_PER_FLOOR); litDot(li,f,true);
     await delay(MS_PER_FLOOR); cur=f;
+    if(abortGame.cancelled){litDot(li,f,false);return;}
     const alighting=correct.filter(cid=>{const c=chars.find(x=>x.id===cid);return c&&c.floor===f;});
     if(alighting.length>0){
       const car=document.getElementById(`lcar-${li}`);
       if(car) car.classList.add('door-open');
       for(const cid of alighting){
+        if(abortGame.cancelled){if(car)car.classList.remove('door-open');return;}
         const c=chars.find(x=>x.id===cid); if(!c)continue;
         c.delivered=true; c.inLift=-1; delivered++;
         passengers[li]=passengers[li].filter(x=>x!==cid);
@@ -618,6 +623,7 @@ async function animLift(li,pass){
   }
 
   for(let f=cur-1;f>=1;f--){
+    if(abortGame.cancelled){return;}
     setCar(li,f,MS_PER_FLOOR);
     await delay(MS_PER_FLOOR); cur=f;
   }
@@ -644,11 +650,13 @@ function onAnimDone(){
 function triggerEnd(){
   if(phase==='end')return;
   phase='end'; clearInterval(gTimer);
-  // disable send buttons
+  abortGame.cancelled=true;
+  // 0ms — freeze lifts in place, disable all buttons
   for(let i=0;i<3;i++){
     const btn=document.getElementById(`send-btn-${i}`);
     if(btn) btn.disabled=true;
   }
+  // 1000ms — pop-up appears (lifts still frozen in last position)
   setTimeout(()=>{
     document.getElementById('end-overlay').classList.remove('hidden');
     document.getElementById('end-title').textContent='⏱ TIME\'S UP!';
@@ -659,12 +667,17 @@ function triggerEnd(){
       delivered<5?'ดีมากเลย! ลองทำให้ได้มากกว่านี้':
       delivered<10?'เก่งมาก! คุณทำได้ดีมากเลย 🎉':
       '🏆 ยอดเยี่ยมมาก! คุณเป็นมือโปร!';
-    const totalSent=chars.filter(c=>c.delivered||c.inLift>=0).length;
     document.getElementById('end-stats').innerHTML=`
       <div class="end-stat"><span>คนที่ส่งสำเร็จ</span><span class="end-val">${delivered} คน</span></div>
       <div class="end-stat"><span>คนที่ผ่านมา Lobby</span><span class="end-val">${nextCharId} คน</span></div>
       <div class="end-stat"><span>เวลาที่ใช้</span><span class="end-val">40 วินาที</span></div>`;
-  },400);
+  },1000);
+  // 1200ms — snap all moving lifts back to floor 1 (behind popup)
+  setTimeout(()=>{
+    for(let i=0;i<3;i++){
+      if(liftMoving[i]) setCar(i,1,0);
+    }
+  },1200);
 }
 
 // ══ TOAST ══
