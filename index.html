@@ -31,7 +31,7 @@ body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;h
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 
 /* ── ROW 1: BUILDING VIEW (top, taller) ── */
-#bld-zone{flex:3;position:relative;overflow:hidden;background:var(--surface);border-bottom:2px solid rgba(255,255,255,.1);min-height:0}
+#bld-zone{flex:4;position:relative;overflow:hidden;background:var(--surface);border-bottom:2px solid rgba(255,255,255,.1);min-height:0}
 #bld-floors{position:absolute;inset:0;display:flex;flex-direction:column-reverse}
 .bld-row{display:flex;align-items:center;border-top:1px solid rgba(255,255,255,.05);flex-shrink:0}
 .bld-row.fl1{background:rgba(0,229,255,.04)}
@@ -76,21 +76,22 @@ body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;h
 .char-card:hover{border-color:rgba(0,229,255,.5);transform:scale(1.06)}
 .char-card.sel{border-color:var(--accent);background:rgba(0,229,255,.08)}
 .char-card.wrong-wait{border-color:rgba(255,200,0,.6)!important}
-.floor-badge{position:absolute;top:3px;right:3px;font-size:10px;font-weight:700;background:var(--accent2);color:#fff;border-radius:3px;padding:1px 4px;line-height:1.4}
-.floor-badge.warn{background:#ffd600;color:#000}
+.floor-badge{position:absolute;top:3px;right:3px;font-size:14px;font-weight:700;background:#e8f5e9;color:#1b5e20;border-radius:4px;padding:2px 5px;line-height:1.4}
+.floor-badge.warn{background:#fff9c4;color:#f57f17}
 .char-body{font-size:30px;line-height:1}
 .char-nm{font-size:7px;color:var(--text2)}
 
 /* LIFT ZONE — right column, 50% width */
 #lift-zone{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 #lift-slots{display:flex;gap:1px;background:rgba(255,255,255,.04);flex:1;min-height:0}
-.lift-slot{flex:1;background:var(--surface);display:flex;flex-direction:column;overflow:hidden;border-right:1px solid rgba(255,255,255,.04)}
+.lift-slot{flex:1;background:var(--surface);display:flex;flex-direction:column;overflow:hidden;border-right:1px solid rgba(255,255,255,.04);transition:background .3s,opacity .3s}
 .lift-slot:last-child{border-right:none}
-.lift-hdr{padding:6px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
-.lift-lbl{font-size:10px;font-weight:700;letter-spacing:.15em}
-.lift-range{font-size:9px;color:var(--text2)}
-.lift-cap{font-size:10px;color:var(--text2)}
-.lA .lift-lbl{color:var(--lA)}.lB .lift-lbl{color:var(--lB)}.lC .lift-lbl{color:var(--lC)}
+.lift-slot.moving{background:rgba(0,0,0,.45);opacity:.5;pointer-events:none}
+.lift-hdr{padding:5px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
+.lift-lbl{display:none}
+.lift-range{font-size:13px;font-weight:700;color:var(--text)}
+.lift-cap{font-size:13px;font-weight:700;color:var(--text2)}
+.lA .lift-range{color:var(--lA)}.lB .lift-range{color:var(--lB)}.lC .lift-range{color:var(--lC)}
 .lift-pass{flex:1;padding:5px;display:flex;flex-wrap:wrap;gap:3px;align-content:flex-start;overflow-y:auto;cursor:pointer}
 .lift-pass::-webkit-scrollbar{width:3px}
 .pass-chip{display:flex;align-items:center;gap:3px;background:var(--surface2);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:2px 5px;font-size:10px;cursor:pointer;transition:background .12s}
@@ -107,11 +108,6 @@ body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;h
 #send-btn-2{border-color:var(--lC);color:var(--lC)}
 #send-btn-2:hover:not(:disabled){background:var(--lC);color:#fff}
 .send-lift-btn:disabled{opacity:.25;cursor:not-allowed}
-
-/* ── STATUS BAR ── */
-#status-bar{padding:6px 14px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--surface);font-size:10px;color:var(--text2);min-height:32px}
-#status-bar b{color:var(--accent)}
-#status-bar.animating{border-top-color:rgba(0,229,255,.3)}
 
 /* ── TITLE SCREEN ── */
 #title-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);z-index:100;transition:opacity .3s}
@@ -211,20 +207,15 @@ body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;h
         </div>
       </div>
       <div id="lift-actions">
-        <button class="send-lift-btn" id="send-btn-0" onclick="sendOneLift(0)" disabled>Send A</button>
-        <button class="send-lift-btn" id="send-btn-1" onclick="sendOneLift(1)" disabled>Send B</button>
-        <button class="send-lift-btn" id="send-btn-2" onclick="sendOneLift(2)" disabled>Send C</button>
+        <button class="send-lift-btn" id="send-btn-0" onclick="sendOneLift(0)" disabled>SEND</button>
+        <button class="send-lift-btn" id="send-btn-1" onclick="sendOneLift(1)" disabled>SEND</button>
+        <button class="send-lift-btn" id="send-btn-2" onclick="sendOneLift(2)" disabled>SEND</button>
       </div>
     </div>
   </div>
 
 </div>
 
-<!-- STATUS BAR -->
-<div id="status-bar">
-  <span id="status-msg">เลือกตัวละครและ assign เข้าลิฟต์</span>
-  <span id="status-right"></span>
-</div>
 
 <!-- END OVERLAY -->
 <div id="end-overlay" class="hidden">
@@ -304,17 +295,14 @@ function lobbyCount(){
   return chars.filter(c=>!c.delivered&&!c.wrongDropped&&c.inLift<0).length;
 }
 
-// Refill lobby one person at a time with stagger delay
+// Refill lobby one person at a time, chained — recheck before every add
 function refillLobby(){
-  const needed=LOBBY_MAX-lobbyCount();
-  for(let i=0;i<needed;i++){
-    setTimeout(()=>{
-      if(phase==='end')return;
-      const c=createChar();
-      chars.push(c);
-      renderLobby();
-    }, i*180);
-  }
+  if(phase==='end')return;
+  if(lobbyCount()>=LOBBY_MAX)return;
+  const c=createChar();
+  chars.push(c);
+  renderLobby();
+  setTimeout(refillLobby, 180);
 }
 
 // ══ TITLE ══
@@ -342,8 +330,6 @@ function startGame(){
   document.getElementById('main-timer').classList.remove('urgent');
   document.getElementById('main-phase').textContent='ASSIGN PHASE';
   document.getElementById('pbar').style.width='100%';
-  document.getElementById('status-msg').textContent='เลือกตัวละครและ assign เข้าลิฟต์';
-  document.getElementById('status-right').textContent='';
   renderLobby(); renderLifts(); updateSendBtn();
   buildBldView();
   clearInterval(gTimer);
@@ -427,7 +413,9 @@ function renderLifts(){
   for(let i=0;i<3;i++){
     const p=document.getElementById(`lp-${i}`); p.innerHTML='';
     const moving=liftMoving[i];
-    document.getElementById(`lc-${i}`).textContent=moving?'🔺 MOVING':`${passengers[i].length}/${MAX_CAP}`;
+    const slot=p.closest('.lift-slot');
+    if(slot) slot.classList.toggle('moving', moving);
+    document.getElementById(`lc-${i}`).textContent=`${passengers[i].length}/${MAX_CAP}`;
     if(!moving){
       passengers[i].forEach(cid=>{
         const c=chars.find(x=>x.id===cid); if(!c)return;
@@ -497,6 +485,7 @@ function dropCharToLift(cid,i){
 
 function removePax(cid,i){
   if(liftMoving[i])return;
+  if(lobbyCount()>=LOBBY_MAX){toast('Lobby เต็มแล้ว ไม่สามารถนำคนออกได้');return;}
   passengers[i]=passengers[i].filter(x=>x!==cid);
   const c=chars.find(x=>x.id===cid); if(c){c.inLift=-1;c.waiting=false;}
   renderLobby(); renderLifts();
@@ -514,10 +503,7 @@ async function sendOneLift(li){
   if(liftMoving[li])return;
   if(passengers[li].length===0){toast(`LIFT ${CFG[li].label} ไม่มีผู้โดยสาร`);return;}
   liftMoving[li]=true;
-  const btn=document.getElementById(`send-btn-${li}`);
-  if(btn) btn.disabled=true;
-  document.getElementById(`lp-${li}`).innerHTML='';
-  document.getElementById(`lc-${li}`).textContent='🔺 MOVING';
+  renderLifts();
   document.getElementById('main-phase').textContent='LIFT MOVING';
   const pass=[...passengers[li]];
   await animLift(li, pass);
@@ -661,8 +647,6 @@ function onAnimDone(){
   if(phase==='end')return;
   if(timeLeft<=0){triggerEnd();return;}
   document.getElementById('main-phase').textContent='ASSIGN PHASE';
-  document.getElementById('status-msg').innerHTML=`ส่งได้แล้ว <b>${delivered}</b> คน`;
-  document.getElementById('status-right').textContent='';
   renderLobby(); renderLifts(); updateSendBtn();
 }
 
