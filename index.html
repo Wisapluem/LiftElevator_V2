@@ -145,6 +145,11 @@ body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;h
 /* ghost image helper */
 #drag-ghost{position:fixed;pointer-events:none;z-index:9999;opacity:.85;transform:scale(1.1);transition:none}
 
+/* ── +1s BONUS FLOAT ── */
+.bonus-pop{position:fixed;font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--accent3);pointer-events:none;z-index:400;animation:bonusFly 1.1s ease-out forwards}
+.penalty-pop{position:fixed;font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#ff4444;pointer-events:none;z-index:400;animation:bonusFly 1.1s ease-out forwards}
+@keyframes bonusFly{0%{opacity:1;transform:translateY(0) scale(1.2)}100%{opacity:0;transform:translateY(-48px) scale(0.9)}}
+
 /* ── TOAST ── */
 #toast{position:fixed;bottom:50px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid rgba(0,229,255,.25);padding:6px 16px;font-size:11px;color:var(--accent);z-index:300;pointer-events:none;opacity:0;transition:opacity .25s;white-space:nowrap}
 #toast.show{opacity:1}
@@ -254,6 +259,7 @@ let liftMoving=[false,false,false];
 let nextCharId=0;
 let dragCharId=null;  // id of char being dragged
 let abortGame={cancelled:false};  // abort flag for animLift
+let wrongDelivered=0;  // wrong passengers dropped at cfg.max
 
 // floor delivery map: floorDelivered[f] = { emoji, count }
 let floorDelivered={};
@@ -293,17 +299,21 @@ function genInitialChars(){
   return arr;
 }
 
-// How many chars are currently in lobby (not in lift, not delivered)
+// How many chars are currently in lobby (not in lift, not delivered, not wrongDropped)
 function lobbyCount(){
-  return chars.filter(c=>!c.delivered&&c.inLift<0).length;
+  return chars.filter(c=>!c.delivered&&!c.wrongDropped&&c.inLift<0).length;
 }
 
-// Refill lobby to LOBBY_MAX
+// Refill lobby one person at a time with stagger delay
 function refillLobby(){
   const needed=LOBBY_MAX-lobbyCount();
   for(let i=0;i<needed;i++){
-    const c=createChar();
-    chars.push(c);
+    setTimeout(()=>{
+      if(phase==='end')return;
+      const c=createChar();
+      chars.push(c);
+      renderLobby();
+    }, i*180);
   }
 }
 
@@ -324,6 +334,7 @@ function startGame(){
   timeLeft=GAME_TIME; delivered=0; phase='assign'; liftMoving=[false,false,false];
   floorDelivered={};
   abortGame={cancelled:false};
+  wrongDelivered=0;
   document.getElementById('end-overlay').classList.add('hidden');
   document.getElementById('del-count').textContent=0;
   CFG.forEach((c,i)=>document.getElementById(`lr-${i}`).textContent=`FL ${c.min}–${c.max}`);
@@ -351,27 +362,34 @@ function tick(){
 }
 
 // ══ ASSIGN LOGIC ══
+
+// full rebuild — only for adding/removing cards
 function renderLobby(){
-  const el=document.getElementById('lobby-chars'); el.innerHTML='';
-  let cnt=0;
-  chars.forEach(c=>{
-    if(c.delivered||c.inLift>=0)return;
-    cnt++;
+  const el=document.getElementById('lobby-chars');
+  const existing=new Set([...el.querySelectorAll('.char-card')].map(d=>+d.dataset.cid));
+  const visible=chars.filter(c=>!c.delivered&&!c.wrongDropped&&c.inLift<0);
+  const visibleIds=new Set(visible.map(c=>c.id));
+
+  // remove cards no longer in lobby
+  el.querySelectorAll('.char-card').forEach(d=>{
+    if(!visibleIds.has(+d.dataset.cid)) d.remove();
+  });
+
+  // add new cards
+  visible.forEach(c=>{
+    if(existing.has(c.id)) return; // already in DOM
     const d=document.createElement('div');
     d.className='char-card'+(selChar===c.id?' sel':'')+(c.waiting?' wrong-wait':'');
     d.setAttribute('draggable','true');
     d.dataset.cid=c.id;
     d.innerHTML=`<div class="floor-badge${c.waiting?' warn':''}">${c.floor}</div><div class="char-body">${c.emoji}</div><div class="char-nm">${c.name}</div>`;
     d.onclick=()=>pickChar(c.id);
-
-    // ── drag events ──
     d.addEventListener('dragstart',e=>{
       if(phase!=='assign'){e.preventDefault();return;}
       dragCharId=c.id;
       d.classList.add('dragging');
       e.dataTransfer.effectAllowed='move';
       e.dataTransfer.setData('text/plain',String(c.id));
-      // custom ghost
       const ghost=document.getElementById('drag-ghost');
       ghost.textContent=c.emoji;
       ghost.style.cssText=`font-size:32px;left:-200px;top:-200px;display:block`;
@@ -380,14 +398,29 @@ function renderLobby(){
     d.addEventListener('dragend',()=>{
       d.classList.remove('dragging');
       dragCharId=null;
-      // clear all drop highlights
       document.querySelectorAll('.lift-pass').forEach(lp=>{
         lp.classList.remove('drag-over','drag-over-full');
       });
     });
     el.appendChild(d);
   });
-  document.getElementById('lobby-count').textContent=cnt;
+
+  // update count
+  document.getElementById('lobby-count').textContent=visible.length;
+  // soft-update classes on existing cards (no rebuild)
+  updateLobbyClasses();
+}
+
+// only update sel/wrong-wait classes — no DOM rebuild, no flicker
+function updateLobbyClasses(){
+  document.getElementById('lobby-chars').querySelectorAll('.char-card').forEach(d=>{
+    const cid=+d.dataset.cid;
+    const c=chars.find(x=>x.id===cid); if(!c)return;
+    d.classList.toggle('sel', selChar===cid);
+    d.classList.toggle('wrong-wait', !!c.waiting);
+    const badge=d.querySelector('.floor-badge');
+    if(badge) badge.className='floor-badge'+(c.waiting?' warn':'');
+  });
 }
 
 function renderLifts(){
@@ -437,7 +470,7 @@ function pickChar(id){
   if(phase!=='assign')return;
   const c=chars.find(x=>x.id===id);
   if(!c||c.delivered||c.inLift>=0)return;
-  selChar=(selChar===id)?null:id; renderLobby();
+  selChar=(selChar===id)?null:id; updateLobbyClasses();
   if(selChar!==null) toast(`${c.emoji} FL${c.floor} → คลิกลิฟต์`);
 }
 
@@ -466,7 +499,6 @@ function removePax(cid,i){
   if(liftMoving[i])return;
   passengers[i]=passengers[i].filter(x=>x!==cid);
   const c=chars.find(x=>x.id===cid); if(c){c.inLift=-1;c.waiting=false;}
-  refillLobby();
   renderLobby(); renderLifts();
 }
 
@@ -553,38 +585,9 @@ function updateCarPax(li){
 }
 function litDot(li,f,on){const d=document.getElementById(`dot-${li}-${f}`);if(d)d.classList.toggle('lit',on);}
 
-// Place delivered person on floor — unlimited, show count badge
+// Place delivered person on floor
 function placeDelivered(c){
-  const fc=document.getElementById(`fc-${c.floor}`); if(!fc)return;
-  const f=c.floor;
-  if(!floorDelivered[f]) floorDelivered[f]={emoji:c.emoji,count:0};
-  floorDelivered[f].count++;
-
-  // re-render floor content
-  fc.innerHTML='';
-  // show one emoji badge with count
-  const badge=document.createElement('span');
-  badge.className='del-badge';
-  badge.innerHTML=`<span>${floorDelivered[f].emoji}</span>${floorDelivered[f].count>1?`<span class="del-count-lbl">x${floorDelivered[f].count}</span>`:''}`;
-  fc.appendChild(badge);
-
-  // if multiple distinct deliveries to same floor, show all groups
-  // (for simplicity: aggregate all as one group per floor — shows last emoji + total count)
-  // Advanced: track per-emoji per floor
-  if(floorDelivered[f].count>1){
-    // recount properly across all chars delivered to this floor
-    const allDelivered=chars.filter(ch=>ch.delivered&&ch.floor===f);
-    // group by emoji
-    const groups={};
-    allDelivered.forEach(ch=>{groups[ch.emoji]=(groups[ch.emoji]||0)+1;});
-    fc.innerHTML='';
-    Object.entries(groups).forEach(([em,cnt])=>{
-      const b=document.createElement('span');
-      b.className='del-badge';
-      b.innerHTML=`<span>${em}</span>${cnt>1?`<span class="del-count-lbl">x${cnt}</span>`:''}`;
-      fc.appendChild(b);
-    });
-  }
+  _rerenderFloor(c.floor);
 }
 
 // ══ ANIMATION ══
@@ -592,8 +595,9 @@ async function animLift(li,pass){
   const cfg=CFG[li];
   const correct=pass.filter(cid=>{const c=chars.find(x=>x.id===cid);return c&&c.floor>=cfg.min&&c.floor<=cfg.max});
   const wrong=pass.filter(cid=>!correct.includes(cid));
-  const stops=[...new Set(correct.map(cid=>chars.find(x=>x.id===cid).floor))].sort((a,b)=>a-b);
-  const topFloor=stops.length>0?stops[stops.length-1]:cfg.max;
+  // topFloor = highest correct stop, but at least cfg.max if there are wrong passengers
+  const correctStops=[...new Set(correct.map(cid=>chars.find(x=>x.id===cid).floor))].sort((a,b)=>a-b);
+  const topFloor=wrong.length>0 ? cfg.max : (correctStops.length>0 ? correctStops[correctStops.length-1] : cfg.max);
   let cur=1;
 
   for(let f=2;f<=topFloor;f++){
@@ -601,6 +605,8 @@ async function animLift(li,pass){
     setCar(li,f,MS_PER_FLOOR); litDot(li,f,true);
     await delay(MS_PER_FLOOR); cur=f;
     if(abortGame.cancelled){litDot(li,f,false);return;}
+
+    // drop correct passengers at their floor
     const alighting=correct.filter(cid=>{const c=chars.find(x=>x.id===cid);return c&&c.floor===f;});
     if(alighting.length>0){
       const car=document.getElementById(`lcar-${li}`);
@@ -609,16 +615,35 @@ async function animLift(li,pass){
         if(abortGame.cancelled){if(car)car.classList.remove('door-open');return;}
         const c=chars.find(x=>x.id===cid); if(!c)continue;
         c.delivered=true; c.inLift=-1; delivered++;
+        timeLeft+=1; showBonus(li);
         passengers[li]=passengers[li].filter(x=>x!==cid);
         updateCarPax(li); placeDelivered(c);
         document.getElementById('del-count').textContent=delivered;
         await delay(MS_STOP+50);
       }
       if(car) car.classList.remove('door-open');
-      // Refill lobby every time someone is delivered
       refillLobby();
       renderLobby();
     }
+
+    // drop wrong passengers at cfg.max
+    if(f===cfg.max && wrong.length>0){
+      const car=document.getElementById(`lcar-${li}`);
+      if(car) car.classList.add('door-open');
+      for(const cid of wrong){
+        if(abortGame.cancelled){if(car)car.classList.remove('door-open');return;}
+        const c=chars.find(x=>x.id===cid); if(!c)continue;
+        c.inLift=-1; c.waiting=false; c.wrongDropped=true;
+        wrongDelivered++;
+        timeLeft=Math.max(0,timeLeft-1); showPenalty(li);
+        passengers[li]=passengers[li].filter(x=>x!==cid);
+        updateCarPax(li); placeWrong(c,cfg.max);
+        await delay(MS_STOP+50);
+      }
+      if(car) car.classList.remove('door-open');
+      refillLobby();
+    }
+
     litDot(li,f,false);
   }
 
@@ -628,21 +653,16 @@ async function animLift(li,pass){
     await delay(MS_PER_FLOOR); cur=f;
   }
 
-  wrong.forEach(cid=>{const c=chars.find(x=>x.id===cid);if(c){c.inLift=-1;c.waiting=true;}});
   passengers[li]=[];
-
-  // Refill after wrong passengers return
   refillLobby();
 }
 
 function onAnimDone(){
   if(phase==='end')return;
   if(timeLeft<=0){triggerEnd();return;}
-
   document.getElementById('main-phase').textContent='ASSIGN PHASE';
-  const waiters=chars.filter(c=>c.waiting&&!c.delivered);
   document.getElementById('status-msg').innerHTML=`ส่งได้แล้ว <b>${delivered}</b> คน`;
-  document.getElementById('status-right').innerHTML=waiters.length>0?`<span style="color:#ffd600">${waiters.length} คนรอ assign ใหม่</span>`:'';
+  document.getElementById('status-right').textContent='';
   renderLobby(); renderLifts(); updateSendBtn();
 }
 
@@ -669,6 +689,7 @@ function triggerEnd(){
       '🏆 ยอดเยี่ยมมาก! คุณเป็นมือโปร!';
     document.getElementById('end-stats').innerHTML=`
       <div class="end-stat"><span>คนที่ส่งสำเร็จ</span><span class="end-val">${delivered} คน</span></div>
+      <div class="end-stat"><span>ส่งผิดชั้น</span><span class="end-val" style="color:#ff6b6b">${wrongDelivered} คน</span></div>
       <div class="end-stat"><span>คนที่ผ่านมา Lobby</span><span class="end-val">${nextCharId} คน</span></div>
       <div class="end-stat"><span>เวลาที่ใช้</span><span class="end-val">40 วินาที</span></div>`;
   },1000);
@@ -678,6 +699,64 @@ function triggerEnd(){
       if(liftMoving[i]) setCar(i,1,0);
     }
   },1200);
+}
+
+// ══ BONUS FLOAT ══
+function showBonus(li){
+  const carEl=document.getElementById(`lcar-${li}`);
+  if(!carEl)return;
+  const r=carEl.getBoundingClientRect();
+  const el=document.createElement('div');
+  el.className='bonus-pop';
+  el.textContent='+1s';
+  el.style.left=(r.left+r.width/2-16)+'px';
+  el.style.top=(r.top-8)+'px';
+  document.body.appendChild(el);
+  el.addEventListener('animationend',()=>el.remove());
+}
+
+function showPenalty(li){
+  const carEl=document.getElementById(`lcar-${li}`);
+  if(!carEl)return;
+  const r=carEl.getBoundingClientRect();
+  const el=document.createElement('div');
+  el.className='penalty-pop';
+  el.textContent='-1s';
+  el.style.left=(r.left+r.width/2-16)+'px';
+  el.style.top=(r.top-8)+'px';
+  document.body.appendChild(el);
+  el.addEventListener('animationend',()=>el.remove());
+}
+
+const WRONG_EM=['😤','😠','😒','😑','🤬'];
+function placeWrong(c, floor){
+  c.wrongFloor=floor;
+  c.wrongEmoji=WRONG_EM[Math.floor(Math.random()*WRONG_EM.length)];
+  _rerenderFloor(floor);
+}
+
+function _rerenderFloor(floor){
+  const fc=document.getElementById(`fc-${floor}`); if(!fc)return;
+  fc.innerHTML='';
+  // happy delivered
+  const happy=chars.filter(ch=>ch.delivered&&ch.floor===floor);
+  const happyGroups={};
+  happy.forEach(ch=>{happyGroups[ch.emoji]=(happyGroups[ch.emoji]||0)+1;});
+  Object.entries(happyGroups).forEach(([em,cnt])=>{
+    const b=document.createElement('span');
+    b.className='del-badge';
+    b.innerHTML=`<span>${em}</span>${cnt>1?`<span class="del-count-lbl">x${cnt}</span>`:''}`;
+    fc.appendChild(b);
+  });
+  // wrong dropped
+  const wrong=chars.filter(ch=>ch.wrongDropped&&ch.wrongFloor===floor);
+  if(wrong.length>0){
+    const b=document.createElement('span');
+    b.className='del-badge';
+    b.style.opacity='.7';
+    b.innerHTML=`<span>${wrong[0].wrongEmoji||'😤'}</span>${wrong.length>1?`<span class="del-count-lbl" style="color:#ff6b6b">x${wrong.length}</span>`:''}`;
+    fc.appendChild(b);
+  }
 }
 
 // ══ TOAST ══
