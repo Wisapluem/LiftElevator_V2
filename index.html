@@ -13,6 +13,28 @@
   --text:#e8eaf6;--text2:#8892b0;
   --lA:#1e88e5;--lB:#7b1fa2;--lC:#e65100;
 }
+/* ── EARTH THEME ── */
+body.theme-earth{
+  --bg:#1a1208;--surface:#2a1e0f;--surface2:#3d2e1a;
+  --accent:#ffb347;--accent2:#e07b54;--accent3:#8db87a;
+  --text:#f0e6d3;--text2:#a89070;
+  --lA:#c07a2a;--lB:#7a4a1e;--lC:#4a7a3a;
+}
+/* ── OCEAN THEME ── */
+body.theme-ocean{
+  --bg:#051520;--surface:#0a2535;--surface2:#0f3448;
+  --accent:#00d4aa;--accent2:#ff7f50;--accent3:#7fdfff;
+  --text:#d0eef5;--text2:#6a9fb5;
+  --lA:#0088cc;--lB:#006699;--lC:#00aaaa;
+}
+/* ── THEME PICKER ── */
+.theme-picker{display:flex;gap:10px;margin-bottom:20px}
+.theme-btn{width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:transform .15s,border-color .15s}
+.theme-btn:hover{transform:scale(1.15)}
+.theme-btn.active{border-color:var(--text)}
+.theme-btn.t-dark{background:radial-gradient(circle at 40% 40%,#1a2438,#0a0f1e)}
+.theme-btn.t-earth{background:radial-gradient(circle at 40% 40%,#3d2e1a,#1a1208)}
+.theme-btn.t-ocean{background:radial-gradient(circle at 40% 40%,#0f3448,#051520)}
 body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;height:100vh;overflow:hidden;user-select:none;display:flex;flex-direction:column}
 
 /* ── TOPBAR ── */
@@ -94,9 +116,10 @@ body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;h
 .lA .lift-range{color:var(--lA)}.lB .lift-range{color:var(--lB)}.lC .lift-range{color:var(--lC)}
 .lift-pass{flex:1;padding:5px;display:flex;flex-wrap:wrap;gap:3px;align-content:flex-start;overflow-y:auto;cursor:pointer}
 .lift-pass::-webkit-scrollbar{width:3px}
-.pass-chip{display:flex;align-items:center;gap:3px;background:var(--surface2);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:2px 5px;font-size:10px;cursor:pointer;transition:background .12s}
+.pass-chip{display:flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 8px;font-size:20px;cursor:pointer;transition:background .12s}
 .pass-chip:hover{background:rgba(255,80,80,.15);border-color:rgba(255,80,80,.4)}
-.pass-chip .fn{color:var(--accent2);font-weight:700}
+.pass-chip .fn{color:var(--accent2);font-weight:700;font-size:12px}
+.pass-chip .chip-count{font-size:11px;font-weight:700;color:var(--accent3);background:rgba(168,255,62,.15);border-radius:3px;padding:0 4px;line-height:1.5}
 .pass-chip.wrong{border-color:rgba(255,200,0,.45)!important;background:rgba(255,200,0,.07)!important}
 .pass-chip.wrong .fn{color:#ffd600!important}
 #lift-actions{padding:7px 10px;display:flex;gap:6px;border-top:1px solid rgba(255,255,255,.06);flex-shrink:0}
@@ -157,8 +180,13 @@ body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;h
 <div id="title-screen">
   <div class="game-title">LIFT ELEVATOR</div>
   <div class="game-sub">TIME CHALLENGE</div>
+  <div class="theme-picker">
+    <div class="theme-btn t-dark active" id="tb-dark" onclick="setTheme('dark')" title="Dark"></div>
+    <div class="theme-btn t-earth" id="tb-earth" onclick="setTheme('earth')" title="Earth"></div>
+    <div class="theme-btn t-ocean" id="tb-ocean" onclick="setTheme('ocean')" title="Ocean"></div>
+  </div>
   <button class="btn" onclick="startGame()">▶ START GAME</button>
-  <div class="how-to">🖱 <b style="color:var(--accent)">ลาก</b>ตัวละครวางลงลิฟต์ หรือ <b style="color:var(--accent)">คลิก</b> → คลิกลิฟต์<br>กด SEND ส่งลิฟต์ขึ้น — ส่งพนักงานให้ได้มากที่สุดภายใน <b style="color:var(--accent3)">40 วินาที</b><br><br>🏢 Lobby มีคนใหม่เข้ามาตลอดเวลา | ชั้นรับคนได้ไม่จำกัด</div>
+  <div class="how-to">🖱 <b style="color:var(--accent)">ลาก</b>ตัวละครวางลงลิฟต์ หรือ <b style="color:var(--accent)">คลิก</b> → คลิกลิฟต์<br>กด SEND ส่งลิฟต์ขึ้น — ส่งพนักงานให้ได้มากที่สุดภายใน <b style="color:var(--accent3)">1 นาที</b><br><br>🏢 Lobby มีคนใหม่เข้ามาตลอดเวลา | ชั้นรับคนได้ไม่จำกัด</div>
 </div>
 
 <!-- TOPBAR -->
@@ -237,11 +265,11 @@ body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;h
 <script>
 // ══ CONSTANTS ══
 const TOTAL_FLOORS  = 8;
-const GAME_TIME     = 40;   // 40 seconds
+const GAME_TIME     = 60;   // 60 seconds
 const MAX_CAP       = 4;    // max in each lift
 const LOBBY_MAX     = 6;    // max in lobby
-const MS_PER_FLOOR  = 1000;
-const MS_STOP       = 1000;
+const MS_PER_FLOOR  = 650;
+const MS_STOP       = 350;  // 350 + 50 = 400ms per person
 
 // ══ STATE ══
 let CFG=[], chars=[], passengers=[[],[],[]], selChar=null;
@@ -251,6 +279,7 @@ let nextCharId=0;
 let dragCharId=null;  // id of char being dragged
 let abortGame={cancelled:false};  // abort flag for animLift
 let wrongDelivered=0;  // wrong passengers dropped at cfg.max
+let totalBonusTime=0;  // total seconds gained from successful deliveries
 
 // floor delivery map: floorDelivered[f] = { emoji, count }
 let floorDelivered={};
@@ -305,6 +334,15 @@ function refillLobby(){
   setTimeout(refillLobby, 180);
 }
 
+// ══ THEME ══
+function setTheme(t){
+  document.body.classList.remove('theme-earth','theme-ocean');
+  if(t==='earth') document.body.classList.add('theme-earth');
+  if(t==='ocean') document.body.classList.add('theme-ocean');
+  document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(`tb-${t}`).classList.add('active');
+}
+
 // ══ TITLE ══
 function showTitle(){
   clearInterval(gTimer);
@@ -323,10 +361,11 @@ function startGame(){
   floorDelivered={};
   abortGame={cancelled:false};
   wrongDelivered=0;
+  totalBonusTime=0;
   document.getElementById('end-overlay').classList.add('hidden');
   document.getElementById('del-count').textContent=0;
   CFG.forEach((c,i)=>document.getElementById(`lr-${i}`).textContent=`FL ${c.min}–${c.max}`);
-  document.getElementById('main-timer').textContent=fmtT(GAME_TIME);
+  document.getElementById('main-timer').textContent=fmtT(60);
   document.getElementById('main-timer').classList.remove('urgent');
   document.getElementById('main-phase').textContent='ASSIGN PHASE';
   document.getElementById('pbar').style.width='100%';
@@ -417,13 +456,21 @@ function renderLifts(){
     if(slot) slot.classList.toggle('moving', moving);
     document.getElementById(`lc-${i}`).textContent=`${passengers[i].length}/${MAX_CAP}`;
     if(!moving){
+      // group by floor
+      const groups={};
       passengers[i].forEach(cid=>{
         const c=chars.find(x=>x.id===cid); if(!c)return;
-        const wrong=c.floor<CFG[i].min||c.floor>CFG[i].max;
+        if(!groups[c.floor]) groups[c.floor]={floor:c.floor,cids:[],wrong:c.floor<CFG[i].min||c.floor>CFG[i].max,emoji:c.emoji};
+        groups[c.floor].cids.push(cid);
+      });
+      Object.values(groups).forEach(g=>{
         const chip=document.createElement('div');
-        chip.className='pass-chip'+(wrong?' wrong':'');
-        chip.innerHTML=`<span>${c.emoji}</span><span class="fn">${c.floor}</span>`;
-        chip.onclick=e=>{e.stopPropagation();removePax(cid,i)}; p.appendChild(chip);
+        chip.className='pass-chip'+(g.wrong?' wrong':'');
+        const countLabel=g.cids.length>1?`<span class="chip-count">x${g.cids.length}</span>`:'';
+        chip.innerHTML=`<span>${g.emoji}</span><span class="fn">${g.floor}</span>${countLabel}`;
+        // tap removes last person added to this floor (LIFO)
+        chip.onclick=e=>{e.stopPropagation(); removePax(g.cids[g.cids.length-1],i);};
+        p.appendChild(chip);
       });
     }
 
@@ -597,11 +644,13 @@ async function animLift(li,pass){
     if(alighting.length>0){
       const car=document.getElementById(`lcar-${li}`);
       if(car) car.classList.add('door-open');
+      // combo bonus: (n×2)-1 applied once for this floor
+      const bonus=(alighting.length*2)-1;
+      timeLeft+=bonus; totalBonusTime+=bonus; showBonus(li,bonus);
       for(const cid of alighting){
         if(abortGame.cancelled){if(car)car.classList.remove('door-open');return;}
         const c=chars.find(x=>x.id===cid); if(!c)continue;
         c.delivered=true; c.inLift=-1; delivered++;
-        timeLeft+=1; showBonus(li);
         passengers[li]=passengers[li].filter(x=>x!==cid);
         updateCarPax(li); placeDelivered(c);
         document.getElementById('del-count').textContent=delivered;
@@ -621,7 +670,7 @@ async function animLift(li,pass){
         const c=chars.find(x=>x.id===cid); if(!c)continue;
         c.inLift=-1; c.waiting=false; c.wrongDropped=true;
         wrongDelivered++;
-        timeLeft=Math.max(0,timeLeft-1); showPenalty(li);
+        timeLeft=Math.max(0,timeLeft-2); showPenalty(li);
         passengers[li]=passengers[li].filter(x=>x!==cid);
         updateCarPax(li); placeWrong(c,cfg.max);
         await delay(MS_STOP+50);
@@ -675,7 +724,7 @@ function triggerEnd(){
       <div class="end-stat"><span>คนที่ส่งสำเร็จ</span><span class="end-val">${delivered} คน</span></div>
       <div class="end-stat"><span>ส่งผิดชั้น</span><span class="end-val" style="color:#ff6b6b">${wrongDelivered} คน</span></div>
       <div class="end-stat"><span>คนที่ผ่านมา Lobby</span><span class="end-val">${nextCharId} คน</span></div>
-      <div class="end-stat"><span>เวลาที่ใช้</span><span class="end-val">40 วินาที</span></div>`;
+      <div class="end-stat"><span>เวลาที่ใช้</span><span class="end-val">60s + ${totalBonusTime}s = ${60+totalBonusTime}s</span></div>`;
   },1000);
   // 1200ms — snap all moving lifts back to floor 1 (behind popup)
   setTimeout(()=>{
@@ -686,13 +735,13 @@ function triggerEnd(){
 }
 
 // ══ BONUS FLOAT ══
-function showBonus(li){
+function showBonus(li, amount=1){
   const carEl=document.getElementById(`lcar-${li}`);
   if(!carEl)return;
   const r=carEl.getBoundingClientRect();
   const el=document.createElement('div');
   el.className='bonus-pop';
-  el.textContent='+1s';
+  el.textContent=`+${amount}s`;
   el.style.left=(r.left+r.width/2-16)+'px';
   el.style.top=(r.top-8)+'px';
   document.body.appendChild(el);
@@ -705,7 +754,7 @@ function showPenalty(li){
   const r=carEl.getBoundingClientRect();
   const el=document.createElement('div');
   el.className='penalty-pop';
-  el.textContent='-1s';
+  el.textContent='-2s';
   el.style.left=(r.left+r.width/2-16)+'px';
   el.style.top=(r.top-8)+'px';
   document.body.appendChild(el);
